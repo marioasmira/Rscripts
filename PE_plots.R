@@ -1,11 +1,4 @@
-library(ggplot2)
-library(cowplot)
-
-# sample a discrete distribution from start to finish
-sampleDist <- function(n, start, finish){
-  leng <- finish - start + 1
-  sample(x = seq(start, finish, by = 1), n, replace = T, prob = rep(1/leng, times = leng))
-}
+source("~/Code/Rscripts/plotPE.R")
 
 #### NoPEvsPE_separate ####
 setwd("~/Collect_data/NoPEvsPE_separate")
@@ -1573,7 +1566,7 @@ for (n in 1:95){
   p <- rbind(p, p_temp)
 }
 
-rsamples <- sampleDist(5, 1, 100)
+rsamples <- sampleDist(1, 1, 100)
 
 for(n in 0:95){
   dist_num <- paste("population_distribution_", as.character(n), ".csv", sep = "")
