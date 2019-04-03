@@ -1,0 +1,239 @@
+---
+title: "Modifying gene value"
+author: "M Santos Mira"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  pdf_document:
+    fig_caption: yes
+bibliography: "/home/mario/Dropbox/Bibliography/My Library.bib"
+---
+
+Modifying how gene value is processed (rewriting it). At the moment, each individual has a specific value which will be compared to the environmental value to access both survival and fertility. This specific value comes from an evolvable gene value, acquired information and parental information. I will now change it to two different values which will define the edges at which the individual can survive. The one genetic value will change into two that define the inflection point of a logistic function, which can still be affected by both parental information and learned information (they would change the sensibility of the system, for example activating at a lower temperature to avoid damages in hot conditions).  
+  
+# Example  
+```{r plot_mort, echo=FALSE, message=FALSE, fig.width=5,fig.height=3,fig.cap="\\label{fig:mort} Modified and non modified survival plots."}
+library(ggplot2)
+library(cowplot)
+
+logistic <- function(x, x0, k, l){
+  l/(1 + exp(-k * (x - x0)))
+}
+
+temperatures <- seq(-5,40,0.1)
+unmod <- data.frame(temperature = temperatures,
+                        mort = (logistic(temperatures, 5, 1, 1) + logistic(temperatures, 30, -1, 1)) - 1,
+                        mod = "unmod")
+
+mod <- data.frame(temperature = temperatures,
+                        mort = (logistic(temperatures, 1, 1, 1) + logistic(temperatures, 34, -1, 1)) - 1,
+                        mod = "mod")
+mort <- rbind(mod,unmod)
+
+ggplot(mort, aes(x = temperature, y = mort, colour = mod)) + geom_point() + ylab("Survival") + xlab("Temperature") +
+    scale_color_discrete(name = c("Modified"),
+                       breaks = c("mod", "unmod"),
+                       labels = c("Modified", "Natural"))
+```
+
+In Figure \ref{fig:mort} we have represented hypothetical modified and non-modified mortality curves. By having modified inflection points, individuals would survive better at extreme temperatures (with added costs in fitness).  
+Following @petavy2001jtb, we have some information about survival from egg to adulthood. In this study, there's a maximum survival of around 80% with sharp decreases at 12 and 31$^\circ$C. With this as a base, we can design survival curves as a rectangle with constant area, where one of the sides is composed of the difference between extreme temperatures and the other is survival chance. By allowing the difference between temperature extremes to vary and keeping the area constant, we can calculate the maximum survival which corresponds to a specific amount of difference.  
+Data from figure 6A in @petavy2001jtb:  
+  
+```{r calculate_area}
+# high inflection point
+high <- 31
+
+# low inflection point
+low <- 12
+
+#temperature difference
+temp_diff <- high - low
+
+#maximum probability of survival
+max_prob <- 0.8
+
+#approximate area under the curve
+const_area <- temp_diff * max_prob
+
+const_area
+```
+  
+So we have a constant area of `r const_area`. If we maximize the survival (to 100%), the minimum difference would then be `r const_area` - if the difference is lower it wouldn't increase survival (we would truncate it at 100%). On the other hand, there should be no achievable maximum difference as long as the benefits of surviving in a wider range of temperatures outweighs the costs in survival in general. So as an example we have \ref{fig:short} with a small difference between extremes and high survival and a large difference between extremes and low survival allowing for the evolution of generalists and specialists.  
+  
+
+```{r area_example, echo=FALSE, fig.width=5,fig.height=3,fig.cap="\\label{fig:short} Different examples of constant area."}
+# short difference in temperatures
+short_high <- 30
+short_low <- 15
+short_diff <- short_high - short_low
+short_max_prob <- const_area / short_diff
+
+short <- data.frame(temperature = temperatures,
+					surv = (logistic(temperatures, short_low, 1, short_max_prob) + logistic(temperatures, short_high, -1, short_max_prob)) - short_max_prob,
+					mod = "short")
+
+long_high <- 35
+long_low <- 10
+long_diff <- long_high - long_low
+long_max_prob <- const_area / long_diff
+
+long <- data.frame(temperature = temperatures,
+				   surv = (logistic(temperatures, long_low, 1, long_max_prob) + logistic(temperatures, long_high, -1, long_max_prob)) - long_max_prob,
+				   mod = "long")
+
+surv <- rbind(short, long)
+
+ggplot(surv, aes(x = temperature, y = surv, colour = mod)) + geom_point() + ylab("Survival") + xlab("Temperature") +
+    scale_color_discrete(name = c("Difference"),
+                       breaks = c("short", "long"),
+                       labels = c("Small", "Large"))
+```
+  
+So now coupled with the gene to control position, we also need a gene to control "spread". The first gene controls the low inflection point for example and the second gene controls how far away is the high inflection point.  
+
+# Activation of resistance  
+At each informational step (genes, parental effects, learning) the environment is compared to the current information and the probability of activating the "resistance genes" is increased by a certain value. This value is a linear function of the difference between the perceived temperature and the memory of the individual (the memory starts as the middle point between both inflection points). The slope for this linear relationship is then allowed to evolve from a start value of zero - if evolving into a positive value, offspring will have a tendency to have the same reaction as the parents, if evolving into a negative value, offspring will have a tendency to have the opposite reaction as the parents.  
+The activation function (Figure \ref{fig:act}) can use a logistic function with maximums at 0% and 100% and a fixed x0 (inflection point) at 0.5. The value necessary for activation will then only be modified by parental effects and/or experience - if a small difference should lead to a high probability of activation, the slope of the parental effect and difference will be high.  
+When the genes are activated, either the low or high inflection point of the mortality function are moved and a fitness cost is accrued. This leads to individuals being able to survive in more extreme temperatures with a fitness cost - individuals that survive more time steps may in the end have a higher total fitness (or not).  
+With this we have:  
+
+1. One gene controlling where the "default" low limit is;  
+2. One gene controlling how far from the low limit the high limit should be (respecting the constant area relationship);
+3. One gene controlling the linear relationship between the difference in perceived and initial guesses of temperature and the respective resistance reactions (can be positive or negative);  
+4. One gene controlling the weight of parental information on reactions to shocks (can be positive or negative);  
+
+```{r examples, echo = FALSE, fig.width=5,fig.height=3,fig.cap="\\label{fig:act}Example of an activation function."}
+prob <- seq(0,1,0.01)
+
+act <- data.frame(prob = prob,
+                  acti = logistic(prob, 0.5, 100, 1))
+
+ggplot(act, aes(x = prob, y = acti)) + geom_point() + ylab("Probability of activation") + xlab("Perceived probability\nof extreme temperature")
+```
+
+So each individual will have some default boundaries for survival. These boundaries are modified with the activation of heat shock or cold shock reactions. These reactions are themselves controlled by the information collected by the individual. If new information is higher than the already collected information, the probability of activating the heat shock reaction increases; if new information is lower than the already collected information, the probability of activating the cold shock reaction increases.  
+In this process, parental effects can be expressed as a base probability on each of the extreme cases (one being the negative of the other - if it increases probability in one it will decrease the probability in the other) which is then reset on later stages (could also be evolvable).
+
+# Changes  
+At the moment, each individual has the following:  
+  
+	double Phenotype = 0.0;				// phenotype value
+	double LastInfo = 0.0;				// environmental memory of the individual
+	double GeneValue = 0.0;				// genetic value to base the phenotype value on
+	double PEweight = 0.0;				// weight given to parental information
+	bool ParentalEff = false;			// if the individual will have parental effects
+	bool BaseOverwinter = false;		// if the overwinter mechanisms are active
+	bool Overwinter = false;
+	double Threshold = 0.0;				// if the temperature is below this value,
+											the individual gets copied over to the next generation
+	int Age = 0;						// used to calculate costs of skiping reproduction
+	int Choice = iNumberOfStages / 2;   // at which life stage the individual chooses the phenotype
+	double Fitness = 0.0;				// fitness after a phenotype has been chosen
+	bool Dead = false;					// if the individual is dead
+	int Fertility = 0;					// Number of eggs produced in this time step
+  
+  
+  
+To implement these changes we can eliminate some variables:  
+
+* Phenotype - the fitness of an individual will be calculated directly from it's survival and fecundity;  
+* LastInfo - this will be modified but it will work mostly the same as it's working at the moment, the current estimate of the environment by the individual;  
+* GeneValue - will be replaced by the inflection points in the first graph, it will continue to have only on continuous value but its relevance and utility will be different;  
+* PEweight - will have a different use but will keep the same base;  
+* Fitness - not used anymore since fertility was introduced.  
+  
+Coupled with these, new additions need to be made:  
+
+* HeatSwitch and HeatSlope - x0 and k for the heat shock resistance, respectively;  
+* FreezeSwitch and FreezeSlope - x0 and k for the cold shock resistance, respectively;  
+  
+
+So with renames:  
+  
+	// fixed values in each individual
+	double FreezingPoint = 5.0;			// genetic value for the lowest extreme temperature
+	double PEweight = 0.0;			  	// weight given to parental information
+	bool BaseOverwinter = false;		// if the overwinter mechanisms are active
+	double Threshold = 0.0;				// if the temperature is below this value, the individual
+											gets copied over to the next generation
+	int Choice = iNumberOfStages / 2;	// at which life stage the individual chooses the phenotype
+	double HeatSwitch = 0.5;      		// value at which heat resistance is activated
+	double FreezeSwitch = 0.5;    		// value at which cold resistance is activated
+	double HeatSlope = 100.0;     		// how steep is the activation of heat resistance
+	double FreezeSlope = 100.0;   		// how steep is the activation of cold resistance
+
+	// variable values in each individual
+	double Memory = (FreezingPoint + FreezingPoint + 30.0) / 2.0;
+										// environmental memory of the individual
+	bool Overwinter = false;    	  	// if the indiv is currently overwintering
+	int Age = 0;						// used to calculate costs of skiping reproduction
+	bool Dead = false;					// if the individual is dead
+	int Fertility = 0;					// Number of eggs produced in this time step
+	double LowInflection = 0.0; 		// position of the low inflection point
+	double HighInflection = 0.0;		// position of the high inflection point
+	double CumulativeHeat = 0.0;		// probability of activating heat resistance
+	double CumulativeFreeze = 0.0;  	// probability of activating freeze resistance
+  
+  
+# How life works  
+If we start with adult individuals:  
+
+1. each individual will be subjected to a survival test (Figure \ref{fig:mort});  
+2. if they survive, their fertility is calculated based on the current temperature (with peak fecundity at 28$^\circ$C), costs of aging, costs of timing of choice, and costs of activating resistance genes;  
+3. to build the next generation, all living individuals are copied to the new population and new individuals are sampled to fill the population to a maximum value:  
+    + new individuals will contain all fixed values from the mother as well as the mother's cumulative probabilities;  
+    + mutations are then introduced to this new individual;  
+
+On the next time step:  
+
+4. each developing individual is subjected to a slightly different survival test (Figure \ref{fig:juvmort}) and cumulative probabilities are reset;  
+5. surviving individuals perceive the environment and adjust resistance activation probabilities (Figure \ref{fig:act}) a certain number of times, according to the timing of choice gene;  
+6. individuals compare the environment to their overwinter threshold:  
+    + if the environment value is lower than the threshold, the individual will skip the next reproduction bout;  
+    + otherwise, we return to step 1 and repeat the cycle.  
+  
+So in this context, there are only parental effects in the first stage of development (if the individual survives stage 0 of survival) and these parental effects are only influencing the probability of activating extreme temperature resistances. This influence can be positive or negative - the PEweight variable is a continuous value which can be positive and negative. Individuals can for example, receive information from the parent in a negative way: if the parent thinks it's too hot and parental effects have evolved to be negative, then the offspring will have a tendency to activate the freeze resistance genes.
+
+```{r plot_juvmort, echo=FALSE, message=FALSE, fig.width=5,fig.height=3,fig.cap="\\label{fig:juvmort} Modified and non modified juvenile mortality plots."}
+unmod <- data.frame(temperature = temperatures,
+                        mort = logistic(temperatures, 5+7, -1, 1) + logistic(temperatures, 30, 1, 1),
+                        mod = "unmod")
+
+mod <- data.frame(temperature = temperatures,
+                        mort = logistic(temperatures, 1+7, -1, 1) + logistic(temperatures, 34, 1, 1),
+                        mod = "mod")
+mort <- rbind(mod,unmod)
+
+ggplot(mort, aes(x = temperature, y = mort, colour = mod)) + geom_point() + ylab("Mortality") + xlab("Temperature") +
+    scale_color_discrete(name = c("Modified"),
+                       breaks = c("mod", "unmod"),
+                       labels = c("Modified", "Natural"))
+```
+  
+  
+
+# Results  
+Here we found that with the same starting population, we'll have different results depending on the environment. In very unstable environments, extinction will happen very rapidly. In more stable environments (where the lower boundary of the environment is within the minimum value for the population), these populations don't go extinct and adapt by increasing the overwinter threshold value and by modifying the intrinsic probabilities of activating resistance genes. In these populations, a clear pattern is not visible when it comes to resistance genes but we can observe that in most of them the PEweight seems to be negative. The threshold adaptation is also not present in all populations (in some of them the threshold gradually moves down to a value similar to the lowest temperature), which might be due to "wasting" offspring doesn't have any consequences - in a sense, individuals are having offspring at all times because there is no reason not to. This behaviour might actually be relevant if we introduce some sort of maximum available resources or maximum number of eggs per individual.  
+In a more stable environment, we might expect the resistance gene inflection points to move towards 1 - since they're never needed, it might be beneficial to eliminate all possibilities of activating them. However we don't see this pattern after 200,000 generations.  
+In a shifting environment, we observed the non-extinction of 2 populations out of 8. In these populations, we see that the freezing point is very low (in the negative values) and that parental effects have a very small effect (very close to 0 in both cases). In both of these populations, there appears to be a very sharp change in the freeze switch to a very small value which allows the population to recover in numbers (a small value in a switch will lead to an easy activation of that specific resistance). In one of the populations, this change in the freeze switch coincided with the same change in the heat switch which suggests that in this case the heat switch modification is not necessary to allow the survival of these individuals. Also observed in both populations, the overwinter gene frequency is not stable suggesting it is not required (at least in it's current form) to adapt to these conditions. One interesting detail about these simulations is that both had an extreme bottleneck of only 1 individual. This extreme might be due to the maximum population size of only 5000 individuals but it coincides with findings of real populations of *D. melanogaster*.  
+Curiously, there was 1 population out of 8 that did not go extinct when directly put in the most extreme of cases. It seems that in this population, an early change in the heat switch to a value of 0 allowed the population to better adapt to an extreme variable environment. Also interesting to note that in this population, the overwinter threshold was pushed outside the boundaries of available environmental values - meaning that it's never activated.  
+  
+# Improvements  
+To make this simulation model behave more like fruit flies we can still change:  
+
+1. Maximum amount of reproductive output:
+	+ At this moment, individuals don't have anything to lose when they reproduce in extremely cold environments even though all their offspring die;
+	+ This could be achieved by having another variable which controls for the maximum number of offspring and this value would be decreased each time the individual reproduces;
+	+ It would make sense to make this maximum value temperature dependent, with individuals in hot environments being able to produce a higher amount of eggs.
+2. Scalable probability adjustments:
+	+ At the moment, individuals only compare their memory with the environment and, if the value is higher or lower, update the probabilities of activating resistance genes by a fixed amount;
+	+ This should be changed to not only check if the temperature is higher or lower than expected but also to check how much higher or lower it is;
+	+ In the same vein, probability updates should be scaled to match the difference between what the individual expects and what temperature it measured;
+	+ This relationship could be done linearly with an evolvable slope - so that individuals can adjust how much of a reaction they should have (however, together with the evolvable x0 in the resistance genes this might create non-convergence).
+  
+# "Improved" results
+Contrary to the previous results, with these new modifications, all populations went extinct when gradually shifting the environment. In these extinct populations, none of them changed the freeze switch to a very low value like we observed in the previous populations. At the same time, we can observe that in the populations dropped into a very unstable environment, the ones that were able to quickly evolve a very low value for the freeze switch were able to adapt. This leads to the conclusion that the sensibility of the freeze switch is the main focus of selection - having a easily triggered resistance to cold temperatures allows the populations to survive long enough to develop a similarly sensitive heat resistance trigger.  
+And, as expected, all patterns appear random in the stable population. Due to the shape of the mortality functions, we wouldn't expect strong selection in any of the currently implemented genes.  
+It appears that these last adjustments didn't make much of a difference in the results. Overwinter prevalence is still highly variable even when there's a maximum amount of offspring to produce (500 in this case). The scalable slope for the probability updating be the way to go. If the temperature switches remain constant, the slope of the probability updating could adapt to be more or less sensitive to differences in temperature. However, for this we would have to change how the egg survival is calculated as it wouldn't benefit at all from the adaptation. Maybe PEweight would take up this role - as a separate "slope" to evolve but only for egg survival.  
+
+# References
