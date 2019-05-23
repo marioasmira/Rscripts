@@ -1,0 +1,26 @@
+---
+title: "Add chromosomes"
+author: "M Santos Mira"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  pdf_document:
+    fig_caption: yes
+bibliography: "/home/mario/Dropbox/Bibliography/My Library.bib"
+---
+
+# Objective
+Adding chromosomes to the model would allow to simulate diploid and sexual flies as well as allow for different amounts of cross-over between chromosomes in the future. By having a neat way to store the gene values, a matrix with the full combination of relationships can be added in the future to control how linked each one is to the others. At the same time, by having diploid and sexual individuals we can study how the sexually biased the population might be during overwinter for example.  
+
+# Chromosome
+The changes to add chromosomes involve the addition of a new class of variable. Each chromosome will have on copy of each of the genes and each individual will have two chromosomes. At the time of reproduction (assuming the individual found another individual of the opposite sex), each gene will have a chance to switch values with the same gene in the other chromosome (crossing over) and afterwards new individuals will inherit one of the chromosomes of the "mother" individual and one of the chromosomes of the "father" individual. Member functions of this class are functions to return values and change values.  
+
+# Genome
+Each genome has two chromosomes and it will be used to manipulate both copies of genes. The genome class could be skipped and it's member functions could be transferred to the individual but I think by using a genome class to handle gene and chromosome manipulations it makes understanding the process easier. Member functions of the genome are responsible for cross over events, randomly picking one chromosome for reproduction, return genotype values for a specific trait. Using this class also allows female individuals to store male individual's genotypes and generate gametes when necessary, instead of storing a whole bunch of variations of chromosomes.  
+
+# Sexuality
+To simulate sexuality in this model we can add a new chromosome which only has a gene which determines if the individual is female (producing eggs) or male (transferring genetic material). This gene can be boolean with two 1's coding for female and a 0 and a 1 coding for male (simulating the X chromosome in *Drosophila*). Individuals will randomly try to find a pair of the opposite sex and the male individual will transfer it's genome to the female individual. When producing offspring, the female will use both it's and the male's genotypes to generate pairs of chromosomes.  
+I'll use a vector to store the index of female individuals. By looping through this vector, we mate each female with a random male from the population. In this context, females mate only once per time cycle and males can mate more than once.  
+Female fertility can still be calculated at the time of development and the genetic information from it's and the corresponding male's genotypes will be copied over during the next population building step.  
+
+# Changes
+With this we have 3 new classes of objects: Autosomal chromosome, which has all the previously used genes; Sex chromosome, which has just one gene to determine the sex of the individual; and Genotype; which has two copies of each of the chromosome types. Additionally, each individual will have one or two genotypes stored (two in the case of a mated female) and the modifiable values used so far.

@@ -4032,3 +4032,756 @@ for(interv in 1:3){
     )
   }
 }
+
+
+#### heatpoint, stable ####
+
+setwd("~/Collect_data/heatpoint_stable")
+num_samples <-8
+
+par_num <- paste("parameter_values_", as.character(1), "_0.csv", sep = "")
+p <- read.csv(par_num, header = FALSE)
+p <- as.data.frame(t(p))
+colnames(p) <- as.character(unlist(p[1,]))
+p <- p[-1,]
+p$per <- 0
+
+for (n in 2:num_samples){
+  par_num <- paste("parameter_values_", as.character(n), "_0.csv", sep = "")
+  p_temp <- read.csv(par_num, header = FALSE)
+  p_temp <- as.data.frame(t(p_temp))
+  colnames(p_temp) <- as.character(unlist(p_temp[1,]))
+  p_temp <- p_temp[-1,]
+  p_temp$per <- n
+  p <- rbind(p, p_temp)
+}
+
+rsamples <- seq(1,1,1)
+#rsamples <- sampleDist(1, 1, 1)
+intstart <- 1
+intend <- 101
+for(interv in 1:3){
+  if(interv == 1){
+    intstart <- 1
+    intend <- 101
+  }
+  else if(interv == 2){
+    intstart <- 1
+    intend <- max(as.numeric(as.character(p$iGenMax)))
+  }
+  else if(interv == 3){
+    intstart <- (1 + max(as.numeric(as.character(p$iGenMax)))) / 2
+    intend <- intstart + 100
+  }
+  for(n in 1:8){
+    dist_num <- paste("population_distribution_", as.character(n), "_0.csv", sep = "")
+    d_0 <- read.csv(dist_num, header = TRUE)
+    
+    colnames(d_0) <- c("replicate", "gen", "dist", "choice")
+    
+    d_0$PE <- ifelse(d_0$choice < 6, "No PE", "PE")
+    d_0$choice <- as.factor(d_0$choice)
+    d_0$replicate <- as.factor(d_0$replicate)
+    d_0 <- d_0[d_0$replicate %in% rsamples, ]
+    d_0 <- subset(d_0, gen <= intend & gen >=intstart)
+    
+    geno_0 <- ggplot(data = d_0, aes(x = gen, y = dist, fill = choice)) +
+      geom_bar(stat = "identity", width = 1) + facet_grid(rows = vars(replicate)) +
+      ylab("Distribution") + xlab("Generation") +
+      scale_color_discrete(name = c("Genotype"),
+                           breaks = c("0", "1","2","3","4","5",
+                                      "6","7","8","9","10","11"),
+                           labels = c("NoPE 0", "NoPE 1","NoPE 2",
+                                      "NoPE 3","NoPE 4", "NoPE 5",
+                                      "PE 0", "PE 1","PE 2",
+                                      "PE 3","PE 4", "PE 5")) +
+      theme_minimal() +
+      theme(
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        strip.background = element_blank()
+      )
+    #geno_0
+    
+    val_num <- paste("gene_values_", as.character(n), "_0.csv", sep = "")
+    g_0 <- read.csv(val_num, header = TRUE)
+    
+    g_0$diff <- g_0$dHeatPoint-g_0$dTempDiff
+    #g_0 <- subset(g_0, V2 < 13)
+    
+    colnames(g_0) <- c("replicate", "gen","value", "value", "value", "value","value","value","value","value","value","value")
+    g_0$replicate <- as.factor(g_0$replicate)
+    g_0 <- g_0[g_0$replicate %in% rsamples, ]
+    
+  
+    x <- g_0[c(1,2,3)] #g
+    w <- g_0[c(1,2,4)] #peweight
+    z <- g_0[c(1,2,5)] #e
+    t <- g_0[c(1,2,6)] #threshold
+    o <- g_0[c(1,2,7)] #overwinter
+    ag <- g_0[c(1,2,8)] #age
+    hs <- g_0[c(1,2,9)] #temp diff
+    fs <- g_0[c(1,2,10)] #porb slope
+    siz <- g_0[c(1,2,11)] # pop size
+    diff <- g_0[c(1,2,12)] #low point
+    x$type <- "hpoint"
+    w$type <- "peweight"
+    z$type <- "env"
+    t$type <- "thres"
+    o$type <- "overw"
+    ag$type <- "age"
+    hs$type <- "tempdiff"
+    fs$type <- "probslope"
+    siz$type <- "popsize"
+    diff$type <- "lpoint"
+    g_0 <- rbind(x,diff,z,t)
+    g_0 <- subset(g_0,  gen <= intend & gen >=intstart)
+    
+    g_0$type <- as.factor(g_0$type)
+    
+    
+    val_0 <- ggplot(data = g_0, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    
+    #val_0
+    
+    g_1 <- rbind(w,o,fs)
+    g_1 <- subset(g_1,  gen <= intend & gen >=intstart)
+    
+    g_1$type <- as.factor(g_1$type)
+    
+    
+    val_1 <- ggplot(data = g_1, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    
+    #val_1
+    
+    g_2 <- rbind(siz)
+    g_2 <- subset(g_2,  gen <= intend & gen >=intstart)
+    
+    g_2$type <- as.factor(g_2$type)
+    
+    
+    val_2 <- ggplot(data = g_2, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      scale_y_continuous(trans = "log10", limits = c(1,1000)) + 
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    #val_2
+    
+    
+    g_3 <- rbind(ag)
+    g_3 <- subset(g_3,  gen <= intend & gen >=intstart)
+    
+    g_3$type <- as.factor(g_3$type)
+    
+    
+    val_3 <- ggplot(data = g_3, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_y_continuous(trans = "log10", limits = c(1,5000)) + 
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    #val_3
+    
+    NoPEvsPE_evolve_blocks <- plot_grid(val_0, val_1, val_2, val_3, ncol = 2)
+    
+    cost <- as.numeric(as.character(p$dCostOfAging[n]))
+    choice <- round(as.numeric(as.character(p$iChoice[n])))
+    #init <- ifelse(as.numeric(as.character(p$bPEStart[n + 1])) == 1, "PE", "NoPE")
+    mut <- ifelse(as.numeric(as.character(p$dPEMutationRate[n])) == 0, "nomut", "mut")
+    
+    if(interv == 1) png_name <- paste("initial/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    else if(interv == 2) png_name <- paste("total/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    else if(interv == 3) png_name <- paste("mid/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    save_plot(png_name, NoPEvsPE_evolve_blocks,
+              ncol = 2, # we're saving a grid plot of 2 columns
+              nrow = 2, # and 2 rows
+              # each individual subplot should have an aspect ratio of 1.3
+              base_aspect_ratio = 1.7,
+              base_height = 6
+    )
+  }
+}
+
+
+#### sex, diploid, stable ####
+
+setwd("~/Collect_data/sex_diploid_stable")
+num_samples <-8
+
+par_num <- paste("parameter_values_", as.character(2), "_0.csv", sep = "")
+p <- read.csv(par_num, header = FALSE)
+p <- as.data.frame(t(p))
+colnames(p) <- as.character(unlist(p[1,]))
+p <- p[-1,]
+p$per <- 0
+
+for (n in 2:num_samples){
+  par_num <- paste("parameter_values_", as.character(n), "_0.csv", sep = "")
+  p_temp <- read.csv(par_num, header = FALSE)
+  p_temp <- as.data.frame(t(p_temp))
+  colnames(p_temp) <- as.character(unlist(p_temp[1,]))
+  p_temp <- p_temp[-1,]
+  p_temp$per <- n
+  p <- rbind(p, p_temp)
+}
+
+rsamples <- seq(1,1,1)
+#rsamples <- sampleDist(1, 1, 1)
+intstart <- 1
+intend <- 101
+for(interv in 1:3){
+  if(interv == 1){
+    intstart <- 1
+    intend <- 101
+  }
+  else if(interv == 2){
+    intstart <- 1
+    intend <- max(as.numeric(as.character(p$iGenMax)))
+  }
+  else if(interv == 3){
+    intstart <- (1 + max(as.numeric(as.character(p$iGenMax)))) / 2
+    intend <- intstart + 100
+  }
+  for(n in 1:num_samples){
+    dist_num <- paste("population_distribution_", as.character(n), "_0.csv", sep = "")
+    d_0 <- read.csv(dist_num, header = TRUE)
+    
+    colnames(d_0) <- c("replicate", "gen", "dist", "choice")
+    
+    d_0$PE <- ifelse(d_0$choice < 6, "No PE", "PE")
+    d_0$choice <- as.factor(d_0$choice)
+    d_0$replicate <- as.factor(d_0$replicate)
+    d_0 <- d_0[d_0$replicate %in% rsamples, ]
+    d_0 <- subset(d_0, gen <= intend & gen >=intstart)
+    
+    geno_0 <- ggplot(data = d_0, aes(x = gen, y = dist, fill = choice)) +
+      geom_bar(stat = "identity", width = 1) + facet_grid(rows = vars(replicate)) +
+      ylab("Distribution") + xlab("Generation") +
+      scale_color_discrete(name = c("Genotype"),
+                           breaks = c("0", "1","2","3","4","5",
+                                      "6","7","8","9","10","11"),
+                           labels = c("NoPE 0", "NoPE 1","NoPE 2",
+                                      "NoPE 3","NoPE 4", "NoPE 5",
+                                      "PE 0", "PE 1","PE 2",
+                                      "PE 3","PE 4", "PE 5")) +
+      theme_minimal() +
+      theme(
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        strip.background = element_blank()
+      )
+    #geno_0
+    
+    val_num <- paste("gene_values_", as.character(n), "_0.csv", sep = "")
+    g_0 <- read.csv(val_num, header = TRUE)
+    
+    g_0$diff <- g_0$dHeatPoint-g_0$dTempDiff
+    #g_0 <- subset(g_0, V2 < 13)
+    
+    colnames(g_0) <- c("replicate", "gen","value", "value", "value", "value","value","value","value","value","value","value","value")
+    g_0$replicate <- as.factor(g_0$replicate)
+    g_0 <- g_0[g_0$replicate %in% rsamples, ]
+    
+    
+    x <- g_0[c(1,2,3)] #g
+    w <- g_0[c(1,2,4)] #peweight
+    z <- g_0[c(1,2,5)] #e
+    t <- g_0[c(1,2,6)] #threshold
+    o <- g_0[c(1,2,7)] #overwinter
+    ag <- g_0[c(1,2,8)] #age
+    hs <- g_0[c(1,2,9)] #temp diff
+    fs <- g_0[c(1,2,10)] #porb slope
+    fem <- g_0[c(1,2,11)] #% of females
+    siz <- g_0[c(1,2,12)] # pop size
+    diff <- g_0[c(1,2,13)] #low point
+    x$type <- "hpoint"
+    w$type <- "peweight"
+    z$type <- "env"
+    t$type <- "thres"
+    o$type <- "overw"
+    ag$type <- "age"
+    hs$type <- "tempdiff"
+    fs$type <- "probslope"
+    siz$type <- "popsize"
+    diff$type <- "lpoint"
+    g_0 <- rbind(x,diff,z,t)
+    g_0 <- subset(g_0,  gen <= intend & gen >=intstart)
+    
+    g_0$type <- as.factor(g_0$type)
+    
+    
+    val_0 <- ggplot(data = g_0, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    
+    #val_0
+    
+    g_1 <- rbind(w,o,fs)
+    g_1 <- subset(g_1,  gen <= intend & gen >=intstart)
+    
+    g_1$type <- as.factor(g_1$type)
+    
+    
+    val_1 <- ggplot(data = g_1, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    
+    #val_1
+    
+    g_2 <- rbind(siz)
+    g_2 <- subset(g_2,  gen <= intend & gen >=intstart)
+    
+    g_2$type <- as.factor(g_2$type)
+    
+    
+    val_2 <- ggplot(data = g_2, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      scale_y_continuous(trans = "log10", limits = c(1,1000)) + 
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    #val_2
+    
+    
+    g_3 <- rbind(ag)
+    g_3 <- subset(g_3,  gen <= intend & gen >=intstart)
+    
+    g_3$type <- as.factor(g_3$type)
+    
+    
+    val_3 <- ggplot(data = g_3, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_y_continuous(trans = "log10", limits = c(1,5000)) + 
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    #val_3
+    
+    NoPEvsPE_evolve_blocks <- plot_grid(val_0, val_1, val_2, val_3, ncol = 2)
+    
+    cost <- as.numeric(as.character(p$dCostOfAging[n]))
+    choice <- round(as.numeric(as.character(p$iChoice[n])))
+    #init <- ifelse(as.numeric(as.character(p$bPEStart[n + 1])) == 1, "PE", "NoPE")
+    mut <- ifelse(as.numeric(as.character(p$dPEMutationRate[n])) == 0, "nomut", "mut")
+    
+    if(interv == 1) png_name <- paste("initial/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    else if(interv == 2) png_name <- paste("total/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    else if(interv == 3) png_name <- paste("mid/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    save_plot(png_name, NoPEvsPE_evolve_blocks,
+              ncol = 2, # we're saving a grid plot of 2 columns
+              nrow = 2, # and 2 rows
+              # each individual subplot should have an aspect ratio of 1.3
+              base_aspect_ratio = 1.7,
+              base_height = 6
+    )
+  }
+}
+
+
+#### sex, diploid, evolve ####
+
+setwd("~/Collect_data/sex_diploid_evolve")
+num_samples <-4
+
+par_num <- paste("parameter_values_", as.character(2), "_0.csv", sep = "")
+p <- read.csv(par_num, header = FALSE)
+p <- as.data.frame(t(p))
+colnames(p) <- as.character(unlist(p[1,]))
+p <- p[-1,]
+p$per <- 0
+
+for (n in 2:num_samples){
+  par_num <- paste("parameter_values_", as.character(n), "_0.csv", sep = "")
+  p_temp <- read.csv(par_num, header = FALSE)
+  p_temp <- as.data.frame(t(p_temp))
+  colnames(p_temp) <- as.character(unlist(p_temp[1,]))
+  p_temp <- p_temp[-1,]
+  p_temp$per <- n
+  p <- rbind(p, p_temp)
+}
+
+rsamples <- seq(1,1,1)
+#rsamples <- sampleDist(1, 1, 1)
+intstart <- 1
+intend <- 101
+for(interv in 1:3){
+  if(interv == 1){
+    intstart <- 1
+    intend <- 101
+  }
+  else if(interv == 2){
+    intstart <- 1
+    intend <- max(as.numeric(as.character(p$iGenMax)))
+  }
+  else if(interv == 3){
+    intstart <- (1 + max(as.numeric(as.character(p$iGenMax)))) / 2
+    intend <- intstart + 100
+  }
+  for(n in 1:num_samples){
+    dist_num <- paste("population_distribution_", as.character(n), "_0.csv", sep = "")
+    d_0 <- read.csv(dist_num, header = TRUE)
+    
+    colnames(d_0) <- c("replicate", "gen", "dist", "choice")
+    
+    d_0$PE <- ifelse(d_0$choice < 6, "No PE", "PE")
+    d_0$choice <- as.factor(d_0$choice)
+    d_0$replicate <- as.factor(d_0$replicate)
+    d_0 <- d_0[d_0$replicate %in% rsamples, ]
+    d_0 <- subset(d_0, gen <= intend & gen >=intstart)
+    
+    geno_0 <- ggplot(data = d_0, aes(x = gen, y = dist, fill = choice)) +
+      geom_bar(stat = "identity", width = 1) + facet_grid(rows = vars(replicate)) +
+      ylab("Distribution") + xlab("Generation") +
+      scale_color_discrete(name = c("Genotype"),
+                           breaks = c("0", "1","2","3","4","5",
+                                      "6","7","8","9","10","11"),
+                           labels = c("NoPE 0", "NoPE 1","NoPE 2",
+                                      "NoPE 3","NoPE 4", "NoPE 5",
+                                      "PE 0", "PE 1","PE 2",
+                                      "PE 3","PE 4", "PE 5")) +
+      theme_minimal() +
+      theme(
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        strip.background = element_blank()
+      )
+    #geno_0
+    
+    val_num <- paste("gene_values_", as.character(n), "_0.csv", sep = "")
+    g_0 <- read.csv(val_num, header = TRUE)
+    
+    g_0$diff <- g_0$dHeatPoint-g_0$dTempDiff
+    #g_0 <- subset(g_0, V2 < 13)
+    
+    colnames(g_0) <- c("replicate", "gen","value", "value", "value", "value","value","value","value","value","value","value","value")
+    g_0$replicate <- as.factor(g_0$replicate)
+    g_0 <- g_0[g_0$replicate %in% rsamples, ]
+    
+    
+    x <- g_0[c(1,2,3)] #g
+    w <- g_0[c(1,2,4)] #peweight
+    z <- g_0[c(1,2,5)] #e
+    t <- g_0[c(1,2,6)] #threshold
+    o <- g_0[c(1,2,7)] #overwinter
+    ag <- g_0[c(1,2,8)] #age
+    hs <- g_0[c(1,2,9)] #temp diff
+    fs <- g_0[c(1,2,10)] #porb slope
+    fem <- g_0[c(1,2,11)] #% of females
+    siz <- g_0[c(1,2,12)] # pop size
+    diff <- g_0[c(1,2,13)] #low point
+    x$type <- "hpoint"
+    w$type <- "peweight"
+    z$type <- "env"
+    t$type <- "thres"
+    o$type <- "overw"
+    ag$type <- "age"
+    hs$type <- "tempdiff"
+    fs$type <- "probslope"
+    siz$type <- "popsize"
+    diff$type <- "lpoint"
+    g_0 <- rbind(x,diff,z,t)
+    g_0 <- subset(g_0,  gen <= intend & gen >=intstart)
+    
+    g_0$type <- as.factor(g_0$type)
+    
+    
+    val_0 <- ggplot(data = g_0, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    
+    #val_0
+    
+    g_1 <- rbind(w,o,fs)
+    g_1 <- subset(g_1,  gen <= intend & gen >=intstart)
+    
+    g_1$type <- as.factor(g_1$type)
+    
+    
+    val_1 <- ggplot(data = g_1, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    
+    #val_1
+    
+    g_2 <- rbind(siz)
+    g_2 <- subset(g_2,  gen <= intend & gen >=intstart)
+    
+    g_2$type <- as.factor(g_2$type)
+    
+    
+    val_2 <- ggplot(data = g_2, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      scale_y_continuous(trans = "log10", limits = c(1,1000)) + 
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    #val_2
+    
+    
+    g_3 <- rbind(ag)
+    g_3 <- subset(g_3,  gen <= intend & gen >=intstart)
+    
+    g_3$type <- as.factor(g_3$type)
+    
+    
+    val_3 <- ggplot(data = g_3, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_y_continuous(trans = "log10", limits = c(1,5000)) + 
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    #val_3
+    
+    NoPEvsPE_evolve_blocks <- plot_grid(val_0, val_1, val_2, val_3, ncol = 2)
+    
+    cost <- as.numeric(as.character(p$dCostOfAging[n]))
+    choice <- round(as.numeric(as.character(p$iChoice[n])))
+    #init <- ifelse(as.numeric(as.character(p$bPEStart[n + 1])) == 1, "PE", "NoPE")
+    mut <- ifelse(as.numeric(as.character(p$dPEMutationRate[n])) == 0, "nomut", "mut")
+    
+    if(interv == 1) png_name <- paste("initial/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    else if(interv == 2) png_name <- paste("total/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    else if(interv == 3) png_name <- paste("mid/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    save_plot(png_name, NoPEvsPE_evolve_blocks,
+              ncol = 2, # we're saving a grid plot of 2 columns
+              nrow = 2, # and 2 rows
+              # each individual subplot should have an aspect ratio of 1.3
+              base_aspect_ratio = 1.7,
+              base_height = 6
+    )
+  }
+}
+
+
+#### sex, diploid, unstable ####
+
+setwd("~/Collect_data/sex_diploid_unstable")
+num_samples <-8
+
+par_num <- paste("parameter_values_", as.character(2), "_0.csv", sep = "")
+p <- read.csv(par_num, header = FALSE)
+p <- as.data.frame(t(p))
+colnames(p) <- as.character(unlist(p[1,]))
+p <- p[-1,]
+p$per <- 0
+
+for (n in 2:num_samples){
+  par_num <- paste("parameter_values_", as.character(n), "_0.csv", sep = "")
+  p_temp <- read.csv(par_num, header = FALSE)
+  p_temp <- as.data.frame(t(p_temp))
+  colnames(p_temp) <- as.character(unlist(p_temp[1,]))
+  p_temp <- p_temp[-1,]
+  p_temp$per <- n
+  p <- rbind(p, p_temp)
+}
+
+rsamples <- seq(1,1,1)
+#rsamples <- sampleDist(1, 1, 1)
+intstart <- 1
+intend <- 101
+for(interv in 1:3){
+  if(interv == 1){
+    intstart <- 1
+    intend <- 101
+  }
+  else if(interv == 2){
+    intstart <- 1
+    intend <- max(as.numeric(as.character(p$iGenMax)))
+  }
+  else if(interv == 3){
+    intstart <- (1 + max(as.numeric(as.character(p$iGenMax)))) / 2
+    intend <- intstart + 100
+  }
+  for(n in 1:num_samples){
+    dist_num <- paste("population_distribution_", as.character(n), "_0.csv", sep = "")
+    d_0 <- read.csv(dist_num, header = TRUE)
+    
+    colnames(d_0) <- c("replicate", "gen", "dist", "choice")
+    
+    d_0$PE <- ifelse(d_0$choice < 6, "No PE", "PE")
+    d_0$choice <- as.factor(d_0$choice)
+    d_0$replicate <- as.factor(d_0$replicate)
+    d_0 <- d_0[d_0$replicate %in% rsamples, ]
+    d_0 <- subset(d_0, gen <= intend & gen >=intstart)
+    
+    geno_0 <- ggplot(data = d_0, aes(x = gen, y = dist, fill = choice)) +
+      geom_bar(stat = "identity", width = 1) + facet_grid(rows = vars(replicate)) +
+      ylab("Distribution") + xlab("Generation") +
+      scale_color_discrete(name = c("Genotype"),
+                           breaks = c("0", "1","2","3","4","5",
+                                      "6","7","8","9","10","11"),
+                           labels = c("NoPE 0", "NoPE 1","NoPE 2",
+                                      "NoPE 3","NoPE 4", "NoPE 5",
+                                      "PE 0", "PE 1","PE 2",
+                                      "PE 3","PE 4", "PE 5")) +
+      theme_minimal() +
+      theme(
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        strip.background = element_blank()
+      )
+    #geno_0
+    
+    val_num <- paste("gene_values_", as.character(n), "_0.csv", sep = "")
+    g_0 <- read.csv(val_num, header = TRUE)
+    
+    g_0$diff <- g_0$dHeatPoint-g_0$dTempDiff
+    #g_0 <- subset(g_0, V2 < 13)
+    
+    colnames(g_0) <- c("replicate", "gen","value", "value", "value", "value","value","value","value","value","value","value","value")
+    g_0$replicate <- as.factor(g_0$replicate)
+    g_0 <- g_0[g_0$replicate %in% rsamples, ]
+    
+    
+    x <- g_0[c(1,2,3)] #g
+    w <- g_0[c(1,2,4)] #peweight
+    z <- g_0[c(1,2,5)] #e
+    t <- g_0[c(1,2,6)] #threshold
+    o <- g_0[c(1,2,7)] #overwinter
+    ag <- g_0[c(1,2,8)] #age
+    hs <- g_0[c(1,2,9)] #temp diff
+    fs <- g_0[c(1,2,10)] #porb slope
+    fem <- g_0[c(1,2,11)] #% of females
+    siz <- g_0[c(1,2,12)] # pop size
+    diff <- g_0[c(1,2,13)] #low point
+    x$type <- "hpoint"
+    w$type <- "peweight"
+    z$type <- "env"
+    t$type <- "thres"
+    o$type <- "overw"
+    ag$type <- "age"
+    hs$type <- "tempdiff"
+    fem$type <- "fem"
+    fem$value <- fem$value / siz$value
+    fs$type <- "probslope"
+    siz$type <- "popsize"
+    diff$type <- "lpoint"
+    g_0 <- rbind(x,diff,z,t)
+    g_0 <- subset(g_0,  gen <= intend & gen >=intstart)
+    
+    g_0$type <- as.factor(g_0$type)
+    
+    
+    val_0 <- ggplot(data = g_0, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    
+    #val_0
+    
+    g_1 <- rbind(w,o,fs, fem)
+    g_1 <- subset(g_1,  gen <= intend & gen >=intstart)
+    
+    g_1$type <- as.factor(g_1$type)
+    
+    
+    val_1 <- ggplot(data = g_1, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    
+    #val_1
+    
+    g_2 <- rbind(siz)
+    g_2 <- subset(g_2,  gen <= intend & gen >=intstart)
+    
+    g_2$type <- as.factor(g_2$type)
+    
+    
+    val_2 <- ggplot(data = g_2, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      scale_y_continuous(trans = "log10", limits = c(1,1000)) + 
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    #val_2
+    
+    
+    g_3 <- rbind(ag)
+    g_3 <- subset(g_3,  gen <= intend & gen >=intstart)
+    
+    g_3$type <- as.factor(g_3$type)
+    
+    
+    val_3 <- ggplot(data = g_3, aes(x = gen, y = value, colour = type)) +
+      geom_line() + facet_grid(rows = vars(replicate)) +
+      ylab("value") + xlab("Generation") +
+      theme_minimal() +
+      #scale_y_continuous(trans = "log10", limits = c(1,5000)) + 
+      #scale_color_manual(values = c("#F8766D", "#619DFF", "#00BA38")) +
+      theme(panel.spacing = unit(1, "lines"),
+            strip.background = element_blank())
+    #val_3
+    
+    NoPEvsPE_evolve_blocks <- plot_grid(val_0, val_1, val_2, val_3, ncol = 2)
+    
+    cost <- as.numeric(as.character(p$dCostOfAging[n]))
+    choice <- round(as.numeric(as.character(p$iChoice[n])))
+    #init <- ifelse(as.numeric(as.character(p$bPEStart[n + 1])) == 1, "PE", "NoPE")
+    mut <- ifelse(as.numeric(as.character(p$dPEMutationRate[n])) == 0, "nomut", "mut")
+    
+    if(interv == 1) png_name <- paste("initial/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    else if(interv == 2) png_name <- paste("total/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    else if(interv == 3) png_name <- paste("mid/",mut,"_choice",choice,"_agecost",cost,"_gen",intstart,"-",intend,"_",as.character(n),".png", sep = "")
+    save_plot(png_name, NoPEvsPE_evolve_blocks,
+              ncol = 2, # we're saving a grid plot of 2 columns
+              nrow = 2, # and 2 rows
+              # each individual subplot should have an aspect ratio of 1.3
+              base_aspect_ratio = 1.7,
+              base_height = 6
+    )
+  }
+}
