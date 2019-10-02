@@ -49,13 +49,12 @@ n_eggs <- c(5, 10, 20)
 
 # to simulate we create a data.frame and then fill it with all the combination of the relevant parameters:
 sim_maternal_effect <- data.frame(
-  sd_diff = NA,
-  n_mothers = NA,
-  n_eggs = NA,
-  mother_ID = NA,
-  measure = NA
+  sd_diff = numeric(),
+  n_mothers = numeric(),
+  n_eggs = numeric(),
+  mother_ID = numeric(),
+  measure = numeric()
 )
-sim_maternal_effect <- na.omit(sim_maternal_effect)
 
 # simulate
 # for each value of sd difference
@@ -75,11 +74,11 @@ for(i in 1:length(sd_diffs)){
         
         # we make a temporary table to hold each mother's data (this is equal to the one we built before)
         temp_eggs <- data.frame(
-          sd_diff = NA,
-          n_mothers = NA,
-          n_eggs = NA,
-          mother_ID = NA,
-          measure = NA
+          sd_diff = numeric(),
+          n_mothers = numeric(),
+          n_eggs = numeric(),
+          mother_ID = numeric(),
+          measure = numeric()
         )
         
         # for each mother we collect n_eggs (5) eggs
@@ -142,14 +141,14 @@ models <- readRDS(file = "sim_models_example_1.rds")
 
 # making a data table for the output
 sim_result <- data.frame(
-  diff = NA,
-  n_mom = NA,
-  n_eggs = NA,
-  sim_ICC = NA,
-  sim_diff = NA,
-  sim_int = NA
+  diff = numeric(),
+  n_mom = numeric(),
+  n_eggs = numeric(),
+  sim_ICC = numeric(),
+  sim_diff = numeric(),
+  sim_int = numeric()
 )
-sim_result <- na.omit(sim_result)
+
 
 # function to calculate intraclass correlation coefficient
 # ICC = var(between moms)/(var(between moms)+var(within moms))
@@ -159,23 +158,22 @@ ICC <- function(alpha, epsilon) {
 }
 
 for(i in 1:length(models)){
-  sd <- posterior_samples(models[[i]], pars = "sd_mother_ID__Intercept")
+  sd <- posterior_samples(models[i], pars = "sd_mother_ID__Intercept")
   sigma <- posterior_samples(models[i], pars = "sigma")
-  interc <- std_vol - posterior_samples(models[i], pars = "b_Intercept")
+  interc <- posterior_samples(models[i], pars = "b_Intercept")
   diff <- diff_values[i]
   n_mom <- n_mom_values[i]
   n_egg <- n_eggs_values[i]
 
   temp_diff <- data.frame(
-    diff,
-    n_mom,
-    n_egg,
-    ICC(sd, sigma),
-    (sigma - sd ),
-    interc
+    diff = diff,
+    n_mom = n_mom,
+    n_eggs = n_egg,
+    sim_ICC = ICC(sd, sigma),
+    sim_diff = (sigma - sd ),
+    sim_int = std_vol - interc
   )
   
-  colnames(temp_diff) <- c("diff", "n_mom", "n_eggs", "sim_ICC", "sim_diff", "sim_int")
   sim_result <- rbind(sim_result, temp_diff)
 }
 
@@ -333,7 +331,7 @@ g3 <- ggplot(data = summary_int, aes(x = n_mom,
 gt <- plot_grid(g1, g2, g3, labels = c("A", "B", "C"), ncol = 1)  
 
 save_plot("sim_results_1.png", gt,
-          ncol = 1, # we're saving a grid plot of 2 columns
+          ncol = 1, # we're saving a grid plot of 1 columns
           nrow = 2, # and 2 rows
           # each individual subplot should have an aspect ratio of 1.3
           base_aspect_ratio = 1.3,
@@ -363,15 +361,15 @@ save_plot("sim_results_1.png", gt,
 
 # bulding data frame to store simulated data
 sim_bunched <- data.frame(
-  sd_diff = NA,
-  vol_diffs = NA,
-  n_eggs = NA,
-  n_mothers = NA,
-  maternal_effects = NA,
-  mother_ID = NA,
-  measure = NA
+  sd_diff = numeric(),
+  vol_diffs = numeric(),
+  n_eggs = numeric(),
+  n_mothers = numeric(),
+  maternal_effects = numeric(),
+  mother_ID = numeric(),
+  measure = numeric()
 )
-sim_bunched <- na.omit(sim_bunched)
+
 
 # we'll put different numbers of mothers in a single cage and randomly collect eggs from pool
 # we'll collect either 50 or 100 per cage
@@ -396,11 +394,14 @@ for(i in 1:length(sd_diffs)){
           # number of eggs mother k lays
           laid_eggs <- rpois(1, lambda = egg_lambda)
           
+	  # calculating a mean for mother m
+	  mean_mother_m <- rnorm(laid_eggs, mean = 0, sd = std_sd - sd_diffs[i])
+	  
           # calculating the volume for each egg of this mother
           eggs_mother_k <-
             std_vol +
             vol_diffs[j] +
-            rnorm(laid_eggs, mean = 0, sd = std_sd - sd_diffs[i]) +
+            mean_mother_m +
             rnorm(laid_eggs, mean = 0, sd = std_sd + sd_diffs[i])
           
           # adding these eggs to the cage
@@ -434,8 +435,11 @@ for(i in 1:length(sd_diffs)){
       
       # for each mother in the group
       for(m in 1:n_mothers[k]){
+	
+	# calculating a mean for mother m
+	mean_mother_m <- rnorm(1, mean = 0, sd = std_sd - sd_diffs[i])
 
-
+        # calculating the volume for each egg of this mother
         sim_bunched_temp <- data.frame(
           sd_diff = sd_diffs[i],
           vol_diffs = vol_diffs[j],
@@ -446,7 +450,7 @@ for(i in 1:length(sd_diffs)){
           measure =
             std_vol +
             vol_diffs[j] +
-            rnorm(10, mean = 0, sd = std_sd - sd_diffs[i]) +
+            mean_mother_m +
             rnorm(10, mean = 0, sd = std_sd + sd_diffs[i])
         )
         
@@ -532,14 +536,13 @@ models3 <- readRDS(file = "sim_models_example_3.rds")
 
 # making a data table for the output
 sim_result_2 <- data.frame(
-  diff = NA,
-  n_mom = NA,
-  n_eggs = NA,
-  vol_diffs = NA,
-  ind_mothers = NA,
-  sim_int = NA
+  diff = numeric(),
+  n_mom = numeric(),
+  n_eggs = numeric(),
+  vol_diffs = numeric(),
+  ind_mothers = numeric(),
+  sim_int = numeric()
 )
-sim_result_2 <- na.omit(sim_result_2)
 
 
 for(i in 1:length(models2)){
@@ -658,7 +661,7 @@ save_plot("sim_results_2.png", g4,
           ncol = 1, # we're saving a grid plot of 2 columns
           nrow = 1, # and 2 rows
           # each individual subplot should have an aspect ratio of 1.3
-          base_aspect_ratio = 1.3,
+          base_aspect_ratio = 1,
           base_height = 10
 )
 

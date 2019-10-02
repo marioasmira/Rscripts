@@ -8,13 +8,13 @@ output:
 ---
 
 # Introduction
-Let's say we have an idea that egg volume varies between two different *D. melanogaster* genotypes. How do we test this hypothesis? Maybe we can just place a bunch of females into a cage and collect random eggs? Would a more individual approach be better? After all, eggs are not randomly sampled from the population so maybe it matters?  
+Let's say we have an idea that egg volume varies between two different *Drosophila melanogaster* genotypes. How do we test this hypothesis with some degree of certainty? Maybe we can just place a bunch of females into a cage and collect random eggs? Would a more individual approach be better? After all, eggs aren't laid by the population, they are laid by each female, so maybe mother ID matters?  
 
-What can we do apart from actually putting a bunch of females into cages and putting some other females individually in petri dish and then compare which approach is better? We can simulate both situations and compare which one would give us the best opportunity to see  (or not see) differences between genotypes.  
+What can we do to figure this out? Apart from actually putting a bunch of females into cages and putting some other females individually in petri dish and then compare which approach is better? Well, we can try to simulate both situations and compare which one would give us the best opportunity to see  (or not see) differences between genotypes.  
 
-In most (I don't know enough to say all) regressions we have two main component: the effects we know, fixed effects which should be controlled in the experiment and random effects which are less "controlled" but can still be used in the analysis; and the "remaining variation", a residual variation that we don't know the origin. When introducing random effects, we're trying to explain some of those residuals as a random sample from a distribution (usually a normal distribution). So in a way, we end up with the same amount of error, $\varepsilon$, but it's split into two parts, the "explainable" part coming from random effects and the "leftover" part coming from residual variation.  
+When doing regression analysis we have two main components: the effects we know, fixed effects which should be controlled in the experiment and random effects which are less "controlled" but can still be used in the analysis; and the "remaining variation", a residual variation which we don't know the origin. When introducing random effects, we're trying to explain some of those residuals as a random sample from a distribution (usually a normal distribution). So in a way, we end up with the same amount of error, $\varepsilon$, but it's split into two parts, the "explainable" part coming from random effects and the "leftover" part coming from residual variation.  
 
-In this case, we are splitting the overall error from the population of eggs ($\varepsilon$) into the error from maternal effects ($\varepsilon_{M}$ - which controls where the mean value of each mother will be) and into the error from each subpopulation of eggs ($\varepsilon_{E}$ - which will determine how far away from the respective mother each egg will be). The difference can be seen between \autoref{fig1} and \autoref{fig2}. In this case, the length of each line should be smaller when we add maternal ID as a random effect, meaning the unexplained part of the error will be lower and we'll understand how much of the "random processes" of determining egg volume are due to maternal effects (nutritional condition, for example).  
+In this case, we are splitting the overall error from the population of eggs ($\varepsilon$) into the error from maternal effects ($\varepsilon_{M}$ - which tries to explain where the mean value of each mother will be) and into the error from each subpopulation of eggs ($\varepsilon_{E}$ - which tries to explain how far away from the respective mother each egg will be). The difference can be seen between \autoref{fig1} and \autoref{fig2}. In this case, the length of each line should be smaller when we add maternal ID as a random effect, meaning the unexplained part of the error will be lower and we'll understand how much of the "random processes" of determining egg volume are due to maternal effects (nutritional condition, for example).  
 
 ```{r fig1, echo = FALSE, out.width = "50%", fig.align="center", fig.cap = "\\label{fig1} Simulated value of eggs. Vertical lines represent the distance from each egg to the mean of the sample."}
 library(knitr)
@@ -28,7 +28,7 @@ knitr::include_graphics("./sim_example_mom.png")
 
 With this established, we now have two questions:  
 
-1) How important is maternal ID and how many eggs/mothers do we need to measure to understand if one part of the variability is really that different from the other?  
+1) How important is maternal ID and how many eggs/mothers do we need to measure to understand if one level of the variability is really that different from the other?  
 2) Which method is better to understand differences between genotypes? Should we collect from a cage with many mothers or measure individual mothers? And if in a cage how many eggs do we need to collect?
 
 # Question 1 - How to test if maternal ID is important
@@ -48,30 +48,30 @@ set.seed(1234)
 # constants for all simulations
 egg_lambda <- 18.5
 std_vol <- 8
-std_sd <- 1
+std_sd <- 0.9
 
 # variables we want to try
-sd_diffs <- c(0.5, 0, -0.5)
+sd_diffs <- c(0.3, 0, -0.3)
 vol_diffs <- c(0.5, 1, 2)
 n_mothers <- c(10, 30, 60, 100)
 n_eggs <- c(5, 10, 20)
+n_eggs_cage <- c(50, 100)
 ```
 
-So here we define 3 constants for all simulations: the rate at which mothers lay eggs (the $\lambda$ from a Poisson distributions - the rate of egg laying per 24h for example), a biologically realistic value for egg volume (in mm^3^ x 10^-3^) and a less realistic value for the standard deviation of egg volume. Next we define vectors for the variables we want to test with all the different values to be tested. In the order they were defined: the difference between the two levels of variability (maternal and egg), the difference in volume of egg between different genotypes, the number of mothers to test (both in a cage and individually), and the number of eggs to test when testing individual females.  
+So here we define 3 constants for all simulations: the rate at which mothers lay eggs (the $\lambda$ from a Poisson distributions - the rate of egg laying per 24h for example), a biologically realistic value for egg volume (in mm^3^ x 10^-3^) and a value for the standard deviation of egg volume taken from a pilot experiment. Next we define vectors for the variables we want to test with all the different values to be tested. In the order they were defined: the difference between the two levels of variability (maternal and egg, the scale of this difference comes from the same pilot experiment), the difference in volume of egg between different genotypes, the number of mothers to test (both in a cage and individually), the number of eggs to measure when testing individual females, and the number of eggs to measure when collecting from a egg laying cage.  
 
-The next step is to loop through all the combinations of the variables we want. In this case, we'll use the sd_diffs, n_mothers and n_eggs vectors which amounts to `r length(sd_diffs) * length(n_mothers) * length(n_eggs)` combinations (for now we'll ignore the vol_diffs vector but we'll return to in in question 2). After defining the 3 loops we start to think more biologically - for each mother, we will simulate an average volume. After we have an average volume for a specific mother, we simulate a volume for each egg. This applies two levels of randomness to our data - mothers have a random difference from the population mean volume (which we specified at the start as std_vol) and eggs have a random difference from the maternal mean volume.  
+The next step is to loop through all the combinations of the variables we want. In this case, we'll use the sd_diffs, n_mothers and n_eggs vectors which amounts to `r length(sd_diffs) * length(n_mothers) * length(n_eggs)` different combinations (for now we'll ignore the vol_diffs vector but we'll return to in in question 2). After defining the 3 loops we start to think more biologically - for each mother, we will simulate an average volume. After we have an average volume for a specific mother, we simulate a volume for each egg. This applies two levels of randomness to our data - mothers have a random difference from the population mean volume (which we specified at the start as std_vol) and eggs have a random difference from the maternal mean volume.  
 
 ```{r first sim}
 # to simulate we create a data.frame and then fill it with all the combination of the
 # relevant parameters:
 sim_maternal_effect <- data.frame(
-  sd_diff = NA,
-  n_mothers = NA,
-  n_eggs = NA,
-  mother_ID = NA,
-  measure = NA
+  sd_diff = numeric(),
+  n_mothers = numeric(),
+  n_eggs = numeric(),
+  mother_ID = numeric(),
+  measure = numeric()
 )
-sim_maternal_effect <- na.omit(sim_maternal_effect)
 
 # simulate
 # for each value of sd difference
@@ -86,11 +86,11 @@ for(i in 1:length(sd_diffs)){
       # for each mother on the respective number
       for(k in 1:n_mothers[j]){
         
-        # each mother has it's own mean value of volume which is
+        # each mother has its own mean value of volume which is
         mean_mother_k <- std_vol + rnorm(1, mean = 0, sd = std_sd - sd_diffs[i])
         
         # we make a temporary table to hold each mother's data
-		# (this is equal to the one we built before)
+		    # (this is equal to the one we built before)
         temp_eggs <- data.frame(
           sd_diff = sd_diffs[i],
           n_mothers = n_mothers[j],
@@ -118,36 +118,31 @@ This next chunk makes sure we have the correct number of combinations before we 
 ```{r prepare_anal_1}
 # next we set up all combinations of parameters
 reps <- length(sd_diffs) * length(n_mothers) * length(n_eggs)
-diff_values <- sort(rep(sd_diffs, reps / length(sd_diffs)))
-n_mom_values <- rep(n_mothers, reps / length(n_mothers))
-n_eggs_values <- rep(
-					 sort(
-						  rep(
-							  n_eggs,
-							  reps / (length(n_eggs) * length(sd_diffs))
-							  )
-						  ),
-					 length(sd_diffs)
-					 )
-  
+
+rep_table <- as.data.frame(expand.grid(
+  diff_values = sd_diffs,
+  n_mom_values = n_mothers,
+  n_eggs_values = n_eggs
+))
+
 # and check if combinations are correctly set up
-reps == length(unique(paste(diff_values, n_mom_values, n_eggs_values, sep = "")))
+reps == nrow(rep_table)
 ```
 
 It seems like it's correct so we'll make a list of objects in which to store our models. We then loop through all the combinations of variables and analyse each subset of our simulation data table.  
 
-```{r eval = FALSE}
+```{r m1, eval = FALSE}
 # if so, build a list od models to store everything
-models <- vector("list", length(diff_values))
+models <- vector("list", length = reps)
 
 # analyse each amount - takes a looong time
 for(i in 1:length(models)){
   models[[i]] <- brm(
     measure ~ 1 + (1 | mother_ID),
     data = subset(sim_maternal_effect,
-                  n_mothers == n_mom_values[i] &
-                    sd_diff == diff_values[i] &
-                    n_eggs == n_eggs_values[i]),
+                  n_mothers == rep_table$n_mom_values[i] &
+                    sd_diff == rep_table$diff_values[i] &
+                    n_eggs == rep_table$n_eggs_values[i]),
     
     cores = 8,
     chains = 8,
@@ -199,9 +194,9 @@ for(i in 1:length(models)){
   sd <- posterior_samples(models[i], pars = "sd_mother_ID__Intercept")
   sigma <- posterior_samples(models[i], pars = "sigma")
   interc <- posterior_samples(models[i], pars = "b_Intercept")
-  diff <- diff_values[i]
-  n_mom <- n_mom_values[i]
-  n_egg <- n_eggs_values[i]
+  diff <- rep_table$diff_values[i]
+  n_mom <- rep_table$n_mom_values[i]
+  n_egg <- rep_table$n_eggs_values[i]
 
   temp_diff <- data.frame(
     diff = diff,
@@ -242,8 +237,8 @@ summary <- data.frame(comb = treatments_summ,
 
 for(i in 1:length(treatments_summ)){
   data_temp <- subset(sim_result, comb == summary$comb[i])
-  summary$diff[i] <- ifelse(data_temp$diff[1] == 0.5, "Mom > Res",
-							ifelse(data_temp$diff[1] == 0, "Mom = Res", "Mom < Res"))
+  summary$diff[i] <- ifelse(data_temp$diff[1] == 0.3, "Mom < Res",
+							ifelse(data_temp$diff[1] == 0, "Mom = Res", "Mom > Res"))
   summary$n_mom[i] <- data_temp$n_mom[1]
   summary$n_eggs[i] <- data_temp$n_eggs[1]
   summary$mean[i] <- mean(data_temp$sim_diff, na.rm = TRUE)
@@ -271,9 +266,9 @@ g1 <- ggplot(data = summary, aes(x = n_mom,
   scale_colour_discrete(name = "Relationship") +
   scale_linetype_discrete(name = "Relationship") +
   scale_shape_discrete(name = "Eggs collected") +
-  geom_hline(yintercept = 0) +
-  geom_hline(yintercept = 1) +
-  geom_hline(yintercept = -1) +
+  geom_hline(yintercept = sd_diffs[1] * 2) +
+  geom_hline(yintercept = sd_diffs[2] * 2) +
+  geom_hline(yintercept = sd_diffs[3] * 2) +
   scale_x_continuous(breaks = n_mothers)
 ```
 
@@ -295,8 +290,8 @@ summary_ICC <- data.frame(comb = treatments_summ,
 
 for(i in 1:length(treatments_summ)){
   data_temp <- subset(sim_result, comb == summary_ICC$comb[i])
-  summary_ICC$diff[i] <- ifelse(data_temp$diff[1] == 0.5, "Mom > Res",
-								ifelse(data_temp$diff[1] == 0, "Mom = Res", "Mom < Res"))
+  summary_ICC$diff[i] <- ifelse(data_temp$diff[1] == 0.3, "Mom < Res",
+								ifelse(data_temp$diff[1] == 0, "Mom = Res", "Mom > Res"))
   summary_ICC$n_mom[i] <- data_temp$n_mom[1]
   summary_ICC$n_eggs[i] <- data_temp$n_eggs[1]
   summary_ICC$mean[i] <- mean(data_temp$sim_ICC, na.rm = TRUE)
@@ -348,8 +343,8 @@ summary_int <- data.frame(comb = treatments_summ,
 
 for(i in 1:length(treatments_summ)){
   data_temp <- subset(sim_result, comb == summary_int$comb[i])
-  summary_int$diff[i] <- ifelse(data_temp$diff[1] == 0.5, "Mom > Res",
-								ifelse(data_temp$diff[1] == 0, "Mom = Res", "Mom < Res"))
+  summary_int$diff[i] <- ifelse(data_temp$diff[1] == 0.3, "Mom < Res",
+								ifelse(data_temp$diff[1] == 0, "Mom = Res", "Mom > Res"))
   summary_int$n_mom[i] <- data_temp$n_mom[1]
   summary_int$n_eggs[i] <- data_temp$n_eggs[1]
   summary_int$mean[i] <- mean(data_temp$sim_int, na.rm = TRUE)
@@ -390,7 +385,7 @@ plot_grid(g1, g2, g3, labels = c("A", "B", "C"), ncol = 1)
 
 ## Answering question 1
 
-So how many mother IDs do we actually need to say if within mother variation is high or low relative to between mother variation? It seems that with 30 mothers we have already a relatively accurate estimate of differences between standard deviations. However, the uncertainty around these estimates is still relatively large (30 mothers, \autoref{fig3}). Here we simulated a difference between levels of 1, but if these differences were smaller we wouldn't have plots this clean. We would have to collect data from 100 mothers to safely say that one level of variation is different from the other. Related to this, the difference between the theoretical intercept and the estimation is still very uncertain up to 60 mothers, especially when the between mother variation is smaller than the within mother variation (\autoref{fig3}C, red points).  
+So how many mother IDs do we actually need to say if within mother variation is high or low relative to between mother variation? It seems that with 30 mothers we have already a relatively accurate estimate of differences between standard deviations. However, the uncertainty around these estimates is still relatively large (30 mothers, \autoref{fig3}). Here we simulated a difference between levels of 0.6, but if these differences were smaller we would have even less clear plots. We would have to collect data from 60 to 100 mothers to safely say that one level of variation is different from the other. Related to this, the difference between the theoretical intercept and the estimation is still very uncertain up to 60 mothers, especially when the between mother variation is larger than the within mother variation (\autoref{fig3}C, blue points).  
 
 Regarding the number of eggs to collect per mother, it seems like there is no big difference between measuring 5, 10 or 20 eggs per mother as long as the number of mothers is high.  
 
@@ -402,7 +397,7 @@ For question 2 we want to know what's the best way to test if there are any diff
 
 ## Simulating data, again
 
-Again we will generate $n$ number of individual mothers (10, 30, 60 or 100 as defined in the beginning of the document) and collect eggs from them. We also generate cages with the same $n$ mothers. However, in this cages, the mothers have a random number of eggs (defined at the start as a Poisson distribution with $\lambda = `r egg_lambda`$) and from the whole pool of eggs we collect either 50 or 100 eggs. We generate both sets of eggs the same way: mother's have an random average value and eggs have a random difference from that average. The aim here is, with the assumption that maternal effects are present, to figure out if extra work of collecting eggs from individual mothers is rewarded with a much higher accuracy.  
+Again we will generate $n$ number of individual mothers (10, 30, 60 or 100 as defined in the beginning of the document) and collect eggs from them. We also generate cages with the same $n$ mothers. However, in these cages, the mothers have a random number of eggs (defined at the start as a Poisson distribution with $\lambda = `r egg_lambda`$) and from the whole pool of eggs we collect either 50 or 100 eggs. We generate both sets of eggs the same way: mother's have an random average value and eggs have a random difference from that average. The aim here is, with the assumption that maternal effects are present, to figure out if extra work of collecting eggs from individual mothers is rewarded with a much higher accuracy.  
 
 In this first code chunk, we create a data frame to store all simulated data and we generate it. First, the "bunched" data which comes from the egg laying cages, and second, the individual data. In the first case, we don't know which egg comes from which mother so we don't store this information.  
 
@@ -418,12 +413,7 @@ sim_bunched <- data.frame(
   measure = numeric()
 )
 
-
-# we'll put different numbers of mothers in a single cage
-# and randomly collect eggs from pool
-# we'll collect either 50 or 100 per cage
-n_eggs_cage <- c(50, 100)
-
+# these for-loops are to simulate cages
 # for each standard deviation difference
 for(i in 1:length(sd_diffs)){
   
@@ -444,14 +434,12 @@ for(i in 1:length(sd_diffs)){
           # number of eggs mother k lays
           laid_eggs <- rpois(1, lambda = egg_lambda)
           
-	  # calculating a mean for mother m
-	  mean_mother_m <- rnorm(laid_eggs, mean = 0, sd = std_sd - sd_diffs[i])
+	        # calculating a mean for mother m
+	        mean_mother_m <- std_vol + vol_diffs[j] +
+	          rnorm(1, mean = 0, sd = std_sd - sd_diffs[i])
 	  
           # calculating the volume for each egg of this mother
-          eggs_mother_k <-
-            std_vol +
-            vol_diffs[j] +
-            mean_mother_m +
+          eggs_mother_k <- mean_mother_m +
             rnorm(laid_eggs, mean = 0, sd = std_sd + sd_diffs[i])
           
           # adding these eggs to the cage
@@ -474,6 +462,7 @@ for(i in 1:length(sd_diffs)){
   }
 }
 
+# these for-loops are to simulate individual mothers
 # for each standard deviation difference
 for(i in 1:length(sd_diffs)){
   
@@ -486,8 +475,9 @@ for(i in 1:length(sd_diffs)){
       # for each mother in the group
       for(m in 1:n_mothers[k]){
 	
-	# calculating a mean for mother m
-	mean_mother_m <- rnorm(1, mean = 0, sd = std_sd - sd_diffs[i])
+	    # calculating a mean for mother m
+	    mean_mother_m <- std_vol + vol_diffs[j] +
+	      rnorm(1, mean = 0, sd = std_sd - sd_diffs[i])
 
         # calculating the volume for each egg of this mother
         sim_bunched_temp <- data.frame(
@@ -498,8 +488,6 @@ for(i in 1:length(sd_diffs)){
           maternal_effects = T,
           mother_ID = m,
           measure =
-            std_vol +
-            vol_diffs[j] +
             mean_mother_m +
             rnorm(10, mean = 0, sd = std_sd + sd_diffs[i])
         )
@@ -516,36 +504,32 @@ for(i in 1:length(sd_diffs)){
 
 ### Running statistical models
 
-Following this we perform analysis on the simulated data again. For the two types of data collection we'll use different models. When we have maternal ID, we use a model with random effects and 3 different intercepts. When collecting from a cage we use a linear model with 3 different intercepts.  
+Following this we perform analysis on the simulated data again. For the two types of data collection we'll use different models. When we have maternal ID, we use a model with random effects and 3 different intercepts. When collecting from a cage we use a linear model with only 3 different intercepts without maternal random effects (because we don't have maternal information - they all laid eggs together).  
 
 ```{r model_2, eval = FALSE}
 # next we set up all combinations of parameters
 reps <- length(sd_diffs) * length(n_mothers) * length(n_eggs_cage)
-diff_values <- sort(rep(sd_diffs, reps / length(sd_diffs)))
-n_mom_values <- rep(n_mothers, reps / length(n_mothers))
-n_eggs_values <- rep(
-					 sort(
-						  rep(
-							  n_eggs_cage, reps / (length(n_eggs_cage) * length(sd_diffs))
-							  )
-						  ),
-					 length(sd_diffs)
-					 )
+
+rep_table <- as.data.frame(expand.grid(
+  diff_values = sd_diffs,
+  n_mom_values = n_mothers,
+  n_eggs_values_cage = n_eggs_cage
+))
 
 # and check if combinations are correctly set up
-length(unique(paste(diff_values, n_mom_values, n_eggs_values, sep = "")))
+reps == nrow(rep_table)
 
 # if so, build a list od models to store everything
-models2 <- vector("list", length(diff_values))
+models2 <- vector("list", length = reps)
 
 # analyse each amount - takes a looong time
 for(i in 1:length(models2)){
   models2[[i]] <- brm(
     measure ~ as.factor(vol_diffs),
     data = subset(sim_bunched,
-                  n_mothers == n_mom_values[i] &
-                    sd_diff == diff_values[i] &
-                    n_eggs_cage == n_eggs_values[i] &
+                  n_mothers == rep_table$n_mom_values[i] &
+                    sd_diff == rep_table$diff_values[i] &
+                    n_eggs_cage == rep_table$n_eggs_values[i] &
                     maternal_effects == FALSE),
     
     cores = 8,
@@ -564,22 +548,25 @@ saveRDS(models2, file = "sim_models_example_2.rds")
 ```{r model_3, eval = FALSE}
 # next we set up all combinations of parameters
 reps_ME <- length(sd_diffs) * length(n_mothers)
-diff_values_ME <- sort(rep(sd_diffs, reps_ME / length(sd_diffs)))
-n_mom_values_ME <- rep(n_mothers, reps_ME / length(n_mothers))
+
+rep_table_ME <- as.data.frame(expand.grid(
+  diff_values_ME = sd_diffs,
+  n_mom_values_ME = n_mothers
+))
 
 # and check if combinations are correctly set up
-length(unique(paste(diff_values_ME, n_mom_values_ME, sep = "")))
+reps_ME == nrow(rep_table_ME)
 
 # if so, build a list od models to store everything
-models3 <- vector("list", length(diff_values_ME))
+models3 <- vector("list", length = reps_ME)
 
 # analyse each amount - takes a looong time
 for(i in 1:length(models3)){
   models3[[i]] <- brm(
     measure ~ as.factor(vol_diffs) + (1 | mother_ID),
     data = subset(sim_bunched,
-                  n_mothers == n_mom_values[i] &
-                    sd_diff == diff_values[i] &
+                  n_mothers == rep_table_ME$n_mom_values[i] &
+                    sd_diff == rep_table_ME$diff_values[i] &
                     maternal_effects == TRUE),
     
     cores = 8,
@@ -606,21 +593,20 @@ models3 <- readRDS(file = "sim_models_example_3.rds")
 
 # some vectors to use below (they weren't run on the previous blocks)
 reps <- length(sd_diffs) * length(n_mothers) * length(n_eggs_cage)
-diff_values <- sort(rep(sd_diffs, reps / length(sd_diffs)))
-n_mom_values <- rep(n_mothers, reps / length(n_mothers))
-n_eggs_values <- rep(
-					 sort(
-						  rep(
-							  n_eggs_cage, reps / (length(n_eggs_cage) * length(sd_diffs))
-							  )
-						  ),
-					 length(sd_diffs)
-					 )
 
+rep_table <- as.data.frame(expand.grid(
+  diff_values = sd_diffs,
+  n_mom_values = n_mothers,
+  n_eggs_values_cage = n_eggs_cage
+))
 
 reps_ME <- length(sd_diffs) * length(n_mothers)
-diff_values_ME <- sort(rep(sd_diffs, reps_ME / length(sd_diffs)))
-n_mom_values_ME <- rep(n_mothers, reps_ME / length(n_mothers))
+
+rep_table_ME <- as.data.frame(expand.grid(
+  diff_values_ME = sd_diffs,
+  n_mom_values_ME = n_mothers
+))
+
 ```
 
 ### Extract results
@@ -643,9 +629,9 @@ for(i in 1:length(models2)){
   interc_0 <- posterior_samples(models2[i], pars = "b_Intercept")
   interc_1 <- interc_0 + posterior_samples(models2[i], pars = "b_as.factorvol_diffs1")
   interc_2 <- interc_0 + posterior_samples(models2[i], pars = "b_as.factorvol_diffs2")
-  diff <- diff_values[i]
-  n_mom <- n_mom_values[i]
-  n_egg <- n_eggs_values[i]
+  diff <- rep_table$diff_values[i]
+  n_mom <- rep_table$n_mom_values[i]
+  n_egg <- rep_table$n_eggs_values[i]
   vol_differences <- sort(rep(vol_diffs, length(interc_0[,1])))
   
   temp_diff <- data.frame(
@@ -665,8 +651,8 @@ for(i in 1:length(models3)){
   interc_0 <- posterior_samples(models3[i], pars = "b_Intercept")
   interc_1 <- interc_0 + posterior_samples(models3[i], pars = "b_as.factorvol_diffs1")
   interc_2 <- interc_0 + posterior_samples(models3[i], pars = "b_as.factorvol_diffs2")
-  diff <- diff_values_ME[i]
-  n_mom <- n_mom_values_ME[i]
+  diff <- rep_table_ME$diff_values_ME[i]
+  n_mom <- rep_table_ME$n_mom_values_ME[i]
   n_egg <- 10
   vol_differences <- sort(rep(vol_diffs, length(interc_0[,1])))
   
@@ -714,8 +700,8 @@ summary <- data.frame(comb = treatments_summ,
 
 for(i in 1:length(treatments_summ)){
   data_temp <- subset(sim_result_2, comb == summary$comb[i])
-  summary$diff[i] <- ifelse(data_temp$diff[1] == 0.5, "Mom > Res",
-							ifelse(data_temp$diff[1] == 0, "Mom = Res", "Mom < Res"))
+  summary$diff[i] <- ifelse(data_temp$diff[1] == 0.3, "Mom < Res",
+							ifelse(data_temp$diff[1] == 0, "Mom = Res", "Mom > Res"))
   summary$n_mom[i] <- data_temp$n_mom[1]
   summary$n_eggs[i] <- data_temp$n_eggs[1]
   summary$ind_mother[i] <-ifelse(data_temp$ind_mother[1] == T, "ME", "No ME")
@@ -732,7 +718,7 @@ for(i in 1:length(treatments_summ)){
 }
 
 hline_05 <- data.frame(
-  diff = rep(c("Mom > Res", "Mom = Res", "Mom < Res"), 2),
+  diff = rep(c("Mom < Res", "Mom = Res", "Mom > Res"), 2),
   ind_mother = rep(c("ME", "No ME"), 3),
   five = 8.5,
   nine = 9,
@@ -761,7 +747,7 @@ g4 <- ggplot(data = summary, aes(x = n_mom,
   facet_grid(vars(as.factor(diff)), vars(as.factor(ind_mother)))
 ```
 
-And we plot:  
+And we plot \autoref{fig4}:  
 
 ```{r , fig.width = 7, fig.height = 8, fig.cap = "\\label{fig4} Posterior sample means and HDPI at 95% for the analysis performed on simulated data. On the left we have data collected ffrom individual mothers and on the right we have data collected from a pool of multiple mothers. Top row is data generated with between mother variation smaller than within mother variation, middle row they are equal, and bottom row between mother variation is larger than within mother variation. Horizontal black lines represent the intercept values used for the simulation."}
 g4
@@ -769,10 +755,10 @@ g4
 
 ## Answering question 2
 
-So which method is better? Pooled collection or an individual mother collection? It seems like it depends on the effect size. In this example, differences between the value of 10 and 8.5 are very apparent even with 10 mothers in a pooled condition. However, for the differences between 9 and 8.5, even after measuring 10 eggs from 100 different mothers from both conditions there is still some overlap.  
+So which method is better? Pooled collection or an individual mother collection? It seems like it depends on the effect size. In this example, differences between treatment C and A are very apparent even with 10 mothers in a pooled condition(\autoref{fig4}). However, for the differences between treatment B and A, even after measuring 10 eggs from 100 different mothers from both conditions there is still some overlap (\autoref{fig4}).  
 
 So which method is better? The individual sampling has a much higher level of accuracy. However it might be overkill, depending on the size of the differences being tested. Measuring 2000 eggs is a waste of time when we could have measured 200 and arrived at the same conclusion. But measuring 200 eggs and not having a conclusion is also a waste of time.  
 
 # Final remarks
 
-"All models are wrong, but some are useful" is an often used sentence in statistics. This can also be applied to simulations. What we did here is wrong. There is more to egg laying than a single average per genotype or per mother. But in some cases, these simplifications help us understand the problem and point us to some things we can correct and improve. In this case, it helped us understand that we might need a lot of mother IDs to have some certainty about between and within mother variability and that that number of measurements might be overkill when trying to differentiate between two genotypes. Taking a couple of hours to understand the problem and make up numbers will probably help in the long run!
+"All models are wrong, but some are useful" is an often used sentence in statistics. This can also be applied to simulations. What we did here is wrong. There is more to egg laying than a single average per genotype or per mother. But in some cases, these simplifications help us understand the problem and point us to some things we can correct and improve. In this case, it helped us understand that we might need a lot of mother IDs to have some certainty about between and within mother variability and that that number of measurements might be overkill when trying to differentiate between two genotypes. Taking a couple of hours to understand the problem and make up numbers will help in the long run!
